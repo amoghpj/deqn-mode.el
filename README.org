@@ -1,0 +1,2 @@
+* deqn-mode
+A single interface for defining differential equations and exporting to various formats
