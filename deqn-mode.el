@@ -1,11 +1,13 @@
-;;; deqn-mode --- Create and simulate dynamic models
+;;; deqn-mode --- Create and export ODE models to various formats
 
 ;;; Commentary:
 ;; Equation mode is an equation editor that allows
 ;; the easy creation and simulation of ODEs or Boolean models in
 ;; Emacs with easy exports to python or matlab.
 ;; 1. DONE Fontify an equation file
-;; 2. DONE Export validated file to various formats
+;; 2. DONE Export validated model to PyDSTool
+;; 3. PROG Export to plain text (separate files for equations, ics, parameters)
+;; 4. TODO Export model to SBML format
 ;;; Code:
 (require 'subr-x)
 (require 'cl)
@@ -235,14 +237,22 @@ deqn-number-p)
   (setq-local deqn-pydstool/pars "{\n")
   (dolist (pvals deqn-param-vals)
     (setq-local deqn-pydstool/pars
-                (concat deqn-pydstool/pars "		      '" (nth 0 pvals) "' : " (nth 1 pvals) ",\n" )))
-  (setq-local deqn-pydstool/pars (concat deqn-pydstool/pars "	          }"))
+                (concat deqn-pydstool/pars
+                        "		      '"
+                        (nth 0 pvals) "' : " (nth 1 pvals)
+                        ",\n" )))
+  (setq-local deqn-pydstool/pars (concat deqn-pydstool/pars
+                                         "	          }"))
   (setq-local deqn-pydstool/ics "{\n")
   (dolist (ics deqn-init-conds)
     (setq-local deqn-pydstool/ics
-                (concat deqn-pydstool/ics "		      '" (nth 0 ics) "' : " (nth 1 ics) ",\n" )))
-  (setq-local deqn-pydstool/ics (concat deqn-pydstool/ics "	          }"))
-  (setq deqn-pydstool-string
+                (concat deqn-pydstool/ics
+                        "		      '"
+                        (nth 0 ics) "' : " (nth 1 ics)
+                        ",\n" )))
+  (setq-local deqn-pydstool/ics (concat deqn-pydstool/ics
+                                        "	          }"))
+  (setq deqn-write-string
               (concat "## This model file is generated automatically using deqn-mode.el ##\n"
                       "import PyDSTool as dst\n\n"
                       "DSargs = dst.args(name='test',\n"
@@ -258,9 +268,60 @@ deqn-number-p)
   (setq-local outfilename (concat (file-name-base (buffer-file-name)) ".py"))
   (setq outbuffername (generate-new-buffer outfilename))
   (with-current-buffer outbuffername
-    (insert deqn-pydstool-string)
+    (insert deqn-write-string)
     (save-buffer))
   )
+
+(defun deqn-write-text ()
+    "Export current file to plain text tab separated files.
+This will generate three files, containing the equations, the parameters,
+and the initial conditions respectively."
+    (interactive)
+    (deqn-parse-and-validate-buffer)
+    ;; Write equations
+    
+    (setq-local deqn-text/equations "# equations\n")
+    (dolist (eqn deqn-equations)
+      (setq-local deqn-text/equations (concat deqn-text/equations
+                                              (substring (nth 0 eqn) 1) "\t" (nth 1 eqn) "\n")))
+    (setq-local outfilename "variables.txt")
+    (setq deqn-write-string deqn-text/equations)
+    (setq outbuffername (generate-new-buffer outfilename))
+    (with-current-buffer outbuffername
+      (insert deqn-write-string)
+      (save-buffer))
+    (message "wrote equations")
+    ;; Write parameters
+    (setq-local deqn-text/parameters "# parameters\n")
+    (dolist (pars deqn-param-vals)
+      (setq-local deqn-text/parameters (concat deqn-text/parameters
+                                              (nth 0 pars) "\t" (nth 1 pars) "\n")))
+    (setq-local outfilename "parameters.txt")
+    (setq outbuffername (generate-new-buffer outfilename))
+    (setq deqn-write-string deqn-text/parameters)
+    (with-current-buffer outbuffername
+      (insert deqn-write-string)
+      (save-buffer))
+    ;; Write initial conditions
+    (setq-local deqn-text/ics "# ics\n")
+    (dolist (ics deqn-init-conds)
+      (setq-local deqn-text/ics (concat deqn-text/ics
+                                              (nth 0 ics) "\t" (nth 1 ics) "\n")))
+    (setq-local outfilename "initialconditions.txt")
+    (setq outbuffername (generate-new-buffer outfilename))
+    (setq deqn-write-string deqn-text/ics)
+    (with-current-buffer outbuffername
+      (insert deqn-write-string)
+      (save-buffer))    
+    )
+
+(defun deqn-write-sbml ()
+    "Export current file to the SBML format.
+Calls the smbl-translator.py script to read plain text files 
+containing the model definition, and exports to SBML."
+    (interactive)
+    (deqn-write-text)
+    (shell-command  "python /home/jalihal/Documents/experiments/deqn-mode/sbml-translator.py"))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.eqn\\'" . deqn-mode))
@@ -270,15 +331,13 @@ deqn-number-p)
  ( " sin\\| exp\\| cos\\| shs\\| min\\| max\\|=" . font-lock-function-name-face) ;;     (deqn-special-names  . font-lock-function-name-face)
     ( "\\([a-zA-Z0-9_]*\\)[ ]*=" 1 font-lock-keyword-face))) ;;         ( (concat "\\([a-zA-Z0-9_]*\\)[ ]*" deqn-separator-symbol)  1 font-lock-keyword-face)))
 
-;; (progn
-;;   (setq deqn-mode-map (make-sparse-keymap))
-
-;;   (define-key deqn-mode-map (kbd "C-c C-p") 'deqn-parse-and-validate-buffer)
-;;   )
 
 (defhydra deqn-mode-hydra (:color blue)
   "Choose export type"
-  ("P" deqn-write-pydstool "PyDSTool"))
+  ("P" deqn-write-pydstool "PyDSTool")
+  ("t" deqn-write-text "Text")
+  ("s" deqn-write-sbml "SBML")  
+  )
 
 (progn
   (setq deqn-mode-map (make-sparse-keymap))
