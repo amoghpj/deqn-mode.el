@@ -4,10 +4,8 @@
 ;; Equation mode is an equation editor that allows
 ;; the easy creation and simulation of ODEs or Boolean models in
 ;; Emacs with easy exports to python or matlab.
-;; 1. PROG Fontify an equation file
-;; 2. TODO Make org file from equations file
-;; 3. HOLD Create an equation editor, with a major mode.
-
+;; 1. DONE Fontify an equation file
+;; 2. DONE Export validated file to various formats
 ;;; Code:
 (require 'subr-x)
 (require 'cl)
@@ -58,7 +56,7 @@
 (defvar-local valid-equations-p nil)
 (defvar-local valid-pvals-p nil)
 
-(defconst deqn-operators '("+" "-" "*" "^" "/" "(" ")"))
+(defconst deqn-operators '("+" "-" "," "*" "^" "/" "(" ")"))
 
 (defcustom deqn-special '("sin" "cos" "shs" "min" "max" "exp")
   "List of reserved function names.")
@@ -169,15 +167,14 @@ DEQN-BUFFER-LINES contains the useful part of the buffer"
     nil))
 deqn-number-p)
 
-
 (defun remove-kwords (deq-string kwlist)
   "From DEQ-STRING, remove each item in KWLIST."
   (setq-local counter 0)
-;;  (message "Length of KWIST is %s" (length kwlist))
+  ;;  (message "Length of KWIST is %s" (length kwlist))
   (while (< counter (length kwlist))
-;;    (message "AT iter [%s] DEQ-STRING IS: %s" counter deq-string)
+    ;;    (message "AT iter [%s] DEQ-STRING IS: %s" counter deq-string)
     (setq-local curr-item (nth counter kwlist))
-;;    (message "STARTING AT %s" curr-item)
+    ;;    (message "STARTING AT %s" curr-item)
     (if (string-match-p curr-item deq-string)
         (setq-local deq-string (replace-regexp-in-string (regexp-quote curr-item) " " deq-string)))
     (setq-local counter (+ counter 1)))
@@ -194,9 +191,8 @@ deqn-number-p)
   unique-in-A
   )
 
-(defun deqn-parse-buffer ()
+(defun deqn-parse-and-validate-buffer ()
   "Parse buffer for variables and parameters."
-  (interactive)
   (deqn-get-useful-lines)
   (message "%s" deqn-buffer-lines)
   (deqn-get-variables deqn-buffer-lines)
@@ -207,16 +203,63 @@ deqn-number-p)
   ;; Next carry out some checks
   (if (= (length deqn-variables) (length deqn-equations))
       (setq-local valid-equations-p t)
+    (message "%s" (length deqn-equations))
     (error "ERROR IN EQUATIONS.  Remember, parameters can't start with a d!"))
   (if (= (length deqn-variables) (length deqn-init-conds))
       (setq-local valid-ics-p t)
     (error "ERROR IN ICS.  Please specify initial conditions of all variables!"))
   (if (= (length deqn-parameters) (length deqn-param-vals))
       (setq-local valid-pval-p t)
-    (error "ERROR IN PARAMETER VALUES.  Please specify a value for all parameters!"))
+    ;; Check if every parameter has a value, error out if not
+    (setq-local deqn-pars-with-vals ())
+    (dolist (dpar deqn-param-vals)
+      (add-to-list 'deqn-pars-with-vals (nth 0 dpar)))
+    (dolist (par deqn-parameters)
+      (if (not (member par deqn-pars-with-vals))
+          (error "ERROR IN PARAMETER VALUES.  %s does not have a value!" par))))
   (if (and valid-equations-p valid-ics-p valid-pval-p)
       (message "This file has been successfully validated")
     (message "something went wrong :("))
+  )
+
+(defun deqn-write-pydstool ()
+  "Export current file to PyDSTool format in python."
+  (interactive)
+  (deqn-parse-and-validate-buffer)
+  (setq-local deqn-pydstool/varspecs "{\n")
+  (dolist (eqn deqn-equations)
+    (setq-local deqn-pydstool/varspecs
+                (concat deqn-pydstool/varspecs "		      '"
+                        (substring (nth 0 eqn) 1) "' : '" (nth 1 eqn) "',\n" )))
+  (setq-local deqn-pydstool/varspecs (concat deqn-pydstool/varspecs "	          }"))
+  (setq-local deqn-pydstool/pars "{\n")
+  (dolist (pvals deqn-param-vals)
+    (setq-local deqn-pydstool/pars
+                (concat deqn-pydstool/pars "		      '" (nth 0 pvals) "' : " (nth 1 pvals) ",\n" )))
+  (setq-local deqn-pydstool/pars (concat deqn-pydstool/pars "	          }"))
+  (setq-local deqn-pydstool/ics "{\n")
+  (dolist (ics deqn-init-conds)
+    (setq-local deqn-pydstool/ics
+                (concat deqn-pydstool/ics "		      '" (nth 0 ics) "' : " (nth 1 ics) ",\n" )))
+  (setq-local deqn-pydstool/ics (concat deqn-pydstool/ics "	          }"))
+  (setq deqn-pydstool-string
+              (concat "## This model file is generated automatically using deqn-mode.el ##\n"
+                      "import PyDSTool as dst\n\n"
+                      "DSargs = dst.args(name='test',\n"
+                      "                  varspecs="
+                      deqn-pydstool/varspecs
+                      ",\n                  pars="
+                      deqn-pydstool/pars
+                      ",\n                  ics="
+                      deqn-pydstool/ics
+                      ",\n                  fnspecs={'shs':(['sig','summation'],'1/(1+e^(-sig*summation))')}"
+                      ",\n                  tdata=[0,10])"))
+  ;; Write to file
+  (setq-local outfilename (concat (file-name-base (buffer-file-name)) ".py"))
+  (setq outbuffername (generate-new-buffer outfilename))
+  (with-current-buffer outbuffername
+    (insert deqn-pydstool-string)
+    (save-buffer))
   )
 
 ;;;###autoload
@@ -224,13 +267,23 @@ deqn-number-p)
 
 (defvar deqn-highlights
   '(("pi" . font-lock-constant-face)
-    ( "sin\\|exp\\|cos\\|shs\\|min\\|max\\|=" . font-lock-function-name-face) ;;     (deqn-special-names  . font-lock-function-name-face)
+ ( " sin\\| exp\\| cos\\| shs\\| min\\| max\\|=" . font-lock-function-name-face) ;;     (deqn-special-names  . font-lock-function-name-face)
     ( "\\([a-zA-Z0-9_]*\\)[ ]*=" 1 font-lock-keyword-face))) ;;         ( (concat "\\([a-zA-Z0-9_]*\\)[ ]*" deqn-separator-symbol)  1 font-lock-keyword-face)))
+
+;; (progn
+;;   (setq deqn-mode-map (make-sparse-keymap))
+
+;;   (define-key deqn-mode-map (kbd "C-c C-p") 'deqn-parse-and-validate-buffer)
+;;   )
+
+(defhydra deqn-mode-hydra (:color blue)
+  "Choose export type"
+  ("P" deqn-write-pydstool "PyDSTool"))
 
 (progn
   (setq deqn-mode-map (make-sparse-keymap))
 
-  (define-key deqn-mode-map (kbd "C-c C-p") 'deqn-parse-buffer)
+  (define-key deqn-mode-map (kbd "C-c h") 'deqn-mode-hydra/body)
   )
 
 (define-derived-mode deqn-mode prog-mode "deqn"
