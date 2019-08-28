@@ -1,2 +1,23 @@
 * deqn-mode
-A single interface for defining differential equations and exporting to various formats
+A single interface for defining differential equations and exporting to various formats.
+* Example
+Put deqn-mode.el where your emacs can see it, and put the following in your init.el
+#+begin_src emacs-lisp
+(require 'deqn-mode)
+#+end_src
+Add the following in a file with a .eqn extension, say model.eqn
+
+#+begin_src text
+drabbit = grass*rabbit - fox*rabbit
+dfox = fox*rabbit - fox
+rabbit = 100
+grass = 100
+fox = 3
+#+end_src
+
+If deqn-mode has been loaded, this text should be syntax highlighted.
+Invoke the deqn mode hydra using =C-c h=. 
+To export the model to a python PyDSTool format, press =P=. The model file
+will be validated. If there are any parameters or initial conditions not specified,
+deqn-mode will throw an error. If everything is fine, the file will be written out
+to a .py script.
