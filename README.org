@@ -8,10 +8,10 @@ Put deqn-mode.el where your emacs can see it, and put the following in your init
 Add the following in a file with a .eqn extension, say model.eqn
 
 #+begin_src text
-drabbit = grass*rabbit - fox*rabbit
-dfox = fox*rabbit - fox
-rabbit = 100
-grass = 100
+drabbit = grass*rabbit - fox*rabbit  # a differential equation is specified by prefixing the variable with a d
+dfox = fox*rabbit - fox 
+rabbit = 100                         # specify initial conditions without the "d" prefix
+grass = 100                          # specify values of parameters
 fox = 3
 #+end_src
 
