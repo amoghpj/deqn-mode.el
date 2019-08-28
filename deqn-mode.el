@@ -42,11 +42,21 @@
     (modify-syntax-entry ?\n ">#" table)
     table))
 
-(defvar deqn-variables ())
+(defvar-local deqn-variables ())
 
-(defvar deqn-buffer-lines ())
+(defvar-local deqn-buffer-lines ())
 
-(defvar deqn-parameters ())
+(defvar-local deqn-parameters ())
+
+(defvar-local deqn-equations ())
+
+(defvar-local deqn-init-conds ())
+
+(defvar-local deqn-param-vals ())
+
+(defvar-local valid-ics-p nil)
+(defvar-local valid-equations-p nil)
+(defvar-local valid-pvals-p nil)
 
 (defconst deqn-operators '("+" "-" "*" "^" "/" "(" ")"))
 
@@ -55,7 +65,6 @@
 
 (defcustom deqn-constants '("pi")
   "List of reserved constant names.")
-
 
 (defun deqn-get-variables (deqn-buffer-lines)
   "Get variables from buffer.
@@ -78,10 +87,25 @@ DEQN-BUFFER-LINES contain useful lines"
                                 1)))
     (setq-local counter (+ 1 counter))))
 
-(defun  deqn-store-equations ()
-  "Make a list of lists associating variables to their respective equations."
-  (message "Storing equations")
-  )
+(defun deqn-create-maps (deqn-buffer-lines)
+  "Make a list of lists associating variables to their respective equations.
+DEQN-BUFFER-LINES stores the useful lines."
+  (dolist (bline deqn-buffer-lines)
+    (setq-local curr-item-split
+                (split-string bline  "="))
+    (setq-local curr-split-trunc ())
+    (add-to-list 'curr-split-trunc (string-trim (nth 0 curr-item-split)))
+    (add-to-list 'curr-split-trunc (string-trim (nth 1 curr-item-split)))
+    (setq-local curr-split-trunc (reverse curr-split-trunc))
+    (message "%s" curr-split-trunc)
+    (cond
+     ((member (string-trim (nth 0 curr-split-trunc)) deqn-variables)
+      (add-to-list 'deqn-init-conds curr-split-trunc))
+     ((member (substring (string-trim (nth 0 curr-split-trunc)) 1) deqn-variables)
+      (add-to-list  'deqn-equations curr-split-trunc))
+     ((member (string-trim (nth 0 curr-split-trunc)) deqn-parameters)
+      (add-to-list 'deqn-param-vals curr-split-trunc)))
+    ))
 
 (defun deqn-get-useful-lines ()
   "Strip empty lines and comments from buffer."
@@ -100,74 +124,51 @@ DEQN-BUFFER-LINES contain useful lines"
       (add-to-list 'deqn-buffer-lines (string-trim curr-string))
       (forward-line 1))))
   
-
 (defun deqn-get-parameters (deqn-buffer-lines)
   "Get variables from buffer.
 DEQN-BUFFER-LINES contains the useful part of the buffer"
   (message "Parsing parameters")
   (setq-local counter 0)
-  (message "%s" deqn-buffer-lines)
-  (while (< counter (length deqn-buffer-lines))
-    (setq-local curr-string (nth counter deqn-buffer-lines))
-    (message "cleaned: %s" curr-string)
-    (if (not (string-match-p (regexp-quote "=") curr-string))
-        (setq-local counter (+ 1 counter))
-      (if  (member (string-trim (nth 0 (split-string curr-string "="))) deqn-variables)
-          (setq-local counter (+ 1 counter))
-        ;; next, get the rhs
-        (setq-local curr-rhs (nth 1 (split-string curr-string "=")));; << Look at the RHS
-        ;; Go through every operator and replace with space
-        (setq-local curr-rhs (remove-kwords curr-rhs deqn-operators))
-        (message "processed: %s" curr-rhs)
-        ;; Split string
-        (setq curr-rhs-list (split-string curr-rhs))
-        (message "RHS list has %s items" (length curr-rhs-list))
-        ;; Remove duplicates
-        (setq-local curr-rhs-list (delete-dups curr-rhs-list))
-        (message "\tdropping dupes:  %s" (length curr-rhs-list))
-        ;; Go through every constant and replace with space
-        (setq-local curr-rhs-list (custom-set-difference curr-rhs-list deqn-constants))
-        (message "\tdropping constants: %s" (length curr-rhs-list))
-        ;; ;; Go through every special function and replace with space
-        (setq-local curr-rhs-list (custom-set-difference curr-rhs-list deqn-special))
-        (message "\tdropping special: %s" (length curr-rhs-list))
-        ;; Go through all the variables and replace with space
-        (setq-local curr-rhs-list (custom-set-difference curr-rhs-list deqn-variables))
-        (message "\tdropping vars: %s" (length curr-rhs-list))
-        (setq-local tokcount 0)
-        (while (< tokcount (length curr-rhs-list))
-          (add-to-list 'deqn-parameters (string-trim (nth tokcount curr-rhs-list)))
-          (setq-local tokcount (+ 1 tokcount)))
-        (setq-local counter (+ 1 counter))))
-    ))
+  (message "%s"  deqn-buffer-lines)
+  (dolist (bline deqn-buffer-lines)
+    (when (string= (substring (string-trim (nth 0 (split-string bline "="))) 0 1) "d")
+      (setq-local curr-rhs (nth 1 (split-string bline "=")));; << Look at the RHS
+      ;; Go through every operator and replace with space
+      (setq-local curr-rhs (remove-kwords curr-rhs deqn-operators))
+      (message "processed: %s" curr-rhs)
+      ;; Split string
+      (setq curr-rhs-list (split-string curr-rhs))
+      (message "RHS list has %s items" (length curr-rhs-list))
+      ;; Remove duplicates
+      (setq-local curr-rhs-list (delete-dups curr-rhs-list))
+      (message "\tdropping dupes:  %s" (length curr-rhs-list))
+      ;; Go through every constant and replace with space
+      (setq-local curr-rhs-list (custom-set-difference curr-rhs-list deqn-constants))
+      (message "\tdropping constants: %s" (length curr-rhs-list))
+      ;; ;; Go through every special function and replace with space
+      (setq-local curr-rhs-list (custom-set-difference curr-rhs-list deqn-special))
+      (message "\tdropping special: %s" (length curr-rhs-list))
+      ;; Go through all the variables and replace with space
+      (setq-local curr-rhs-list (custom-set-difference curr-rhs-list deqn-variables))
+      (message "\tdropping vars: %s" (length curr-rhs-list))
+      (dolist (rhsitem curr-rhs-list)
+        (if (not (ensure-number rhsitem))
+            (add-to-list 'deqn-parameters (string-trim rhsitem))
+          nil))
+    deqn-parameters
+    )))
 
-;; next, get the rhs
-    ;; (setq-local curr-rhs (nth 1 (split-string curr-string "=")));; << Look at the RHS
-    ;; ;; Go through every operator and replace with space
-    ;; (setq-local curr-rhs (remove-kwords curr-rhs deqn-operators))
-    ;; (message "processed: %s" curr-rhs)
-    ;; ;; Split string
-    ;; (setq curr-rhs-list (split-string curr-rhs))
-    ;; (message "RHS list has %s items" (length curr-rhs-list))
-    ;; ;; Remove duplicates
-    ;; (setq-local curr-rhs-list (delete-dups curr-rhs-list))
-    ;; (message "\tdropping dupes has  %s items" (length curr-rhs-list))
-    ;; ;; Go through every constant and replace with space
-    ;; (setq-local curr-rhs-list (custom-set-difference curr-rhs-list deqn-constants))
-    ;; (message "\tdropping constants: %s" (length curr-rhs-list))
-    ;; ;; ;; Go through every special function and replace with space
-    ;; (setq-local curr-rhs-list (custom-set-difference curr-rhs-list deqn-special))
-    ;; (message "\tdropping special: %s" (length curr-rhs-list))
-    ;; (message "%s" curr-rhs-list)
-    ;; ;; Go through all the variables and replace with space
-    ;; (setq-local curr-rhs-list (custom-set-difference curr-rhs-list deqn-variables))
-    ;; (message "\tdropping vars: %s" (length curr-rhs-list))
-    ;; (setq-local tokcount 0)
-    ;; (while (< tokcount (length curr-rhs-list))
-    ;;   (add-to-list 'deqn-parameters (string-trim (nth tokcount curr-rhs-list)))
-    ;;   (setq-local tokcount (+ 1 tokcount)))
-    ;;(setq-local counter (+ 1 counter)))))
-    
+(defun ensure-number (arg-string)
+  "Checks if ARG-STRING is composed purely of numbers."
+(setq-local deqn-constitutes-number '("1" "2" "3" "4" "5" "6" "7" "8" "9" "0" "."))
+(setq-local deqn-number-p t)
+(setq-local string-constituents (delete "" (split-string arg-string "")))
+(dolist (stcon string-constituents)
+  (if (not (member stcon deqn-constitutes-number))
+      (setq-local deqn-number-p nil)
+    nil))
+deqn-number-p)
+
 
 (defun remove-kwords (deq-string kwlist)
   "From DEQ-STRING, remove each item in KWLIST."
@@ -202,7 +203,20 @@ DEQN-BUFFER-LINES contains the useful part of the buffer"
   (message "%s" deqn-variables)
   (deqn-get-parameters deqn-buffer-lines)
   (message "%s" deqn-parameters)
-  ;; (deqn-store-equations)
+  (deqn-create-maps deqn-buffer-lines)
+  ;; Next carry out some checks
+  (if (= (length deqn-variables) (length deqn-equations))
+      (setq-local valid-equations-p t)
+    (error "ERROR IN EQUATIONS.  Remember, parameters can't start with a d!"))
+  (if (= (length deqn-variables) (length deqn-init-conds))
+      (setq-local valid-ics-p t)
+    (error "ERROR IN ICS.  Please specify initial conditions of all variables!"))
+  (if (= (length deqn-parameters) (length deqn-param-vals))
+      (setq-local valid-pval-p t)
+    (error "ERROR IN PARAMETER VALUES.  Please specify a value for all parameters!"))
+  (if (and valid-equations-p valid-ics-p valid-pval-p)
+      (message "This file has been successfully validated")
+    (message "something went wrong :("))
   )
 
 ;;;###autoload
