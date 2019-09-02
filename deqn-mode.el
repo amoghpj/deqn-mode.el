@@ -34,6 +34,9 @@
 (defcustom deqn-separator-symbol "="
   "The equation separator.")
 
+(defcustom deqn-python-folder-path "/home/jalihal/Documents/experiments/deqn-mode/"
+  "Please specify the path to custom python scripts.")
+
 (defvar deqn-mode-syntax-table
   (let ((table (make-syntax-table)))
     ;; Comments
@@ -254,7 +257,8 @@ deqn-number-p)
                                         "	          }"))
   (setq deqn-write-string
               (concat "## This model file is generated automatically using deqn-mode.el ##\n"
-                      "import PyDSTool as dst\n\n"
+                      "import PyDSTool as dst\n"
+                      "import matplotlib.pyplot as plt\n\n"
                       "DSargs = dst.args(name='test',\n"
                       "                  varspecs="
                       deqn-pydstool/varspecs
@@ -263,7 +267,9 @@ deqn-number-p)
                       ",\n                  ics="
                       deqn-pydstool/ics
                       ",\n                  fnspecs={'shs':(['sig','summation'],'1/(1+e^(-sig*summation))')}"
-                      ",\n                  tdata=[0,10])"))
+                      ",\n                  tdata=[0,10])"
+                      "\n\nDS = dst.Vode_ODEsystem(DSargs)\n"
+                      "p = DS.compute('test').sample()"))
   ;; Write to file
   (setq-local outfilename (concat (file-name-base (buffer-file-name)) ".py"))
   (setq outbuffername (generate-new-buffer outfilename))
@@ -321,7 +327,7 @@ Calls the smbl-translator.py script to read plain text files
 containing the model definition, and exports to SBML."
     (interactive)
     (deqn-write-text)
-    (shell-command  "python /home/jalihal/Documents/experiments/deqn-mode/sbml-translator.py"))
+    (shell-command  (concat "python " deqn-python-folder-path "sbml-translator.py")))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.eqn\\'" . deqn-mode))
