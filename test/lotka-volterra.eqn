@@ -1,0 +1,5 @@
+drabbit = grass*rabbit - fox*rabbit
+dfox = fox*rabbit - fox
+rabbit = 100
+grass = 100
+fox = 3
