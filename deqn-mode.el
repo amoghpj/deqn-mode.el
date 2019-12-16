@@ -34,7 +34,7 @@
 (defcustom deqn-separator-symbol "="
   "The equation separator.")
 
-(defcustom deqn-python-folder-path "/home/jalihal/Documents/experiments/deqn-mode/"
+(defcustom deqn-python-folder-path "~/"
   "Please specify the path to custom python scripts.")
 
 (defvar deqn-mode-syntax-table
@@ -339,10 +339,17 @@ containing the model definition, and exports to SBML."
 
 
 (defhydra deqn-mode-hydra (:color blue)
-  "Choose export type"
+  "
+           ----------------
+           ^Export Options^
+           ----------------
+              _P_yDSTool    
+              _S_BML
+              _t_ext
+"
   ("P" deqn-write-pydstool "PyDSTool")
   ("t" deqn-write-text "Text")
-  ("s" deqn-write-sbml "SBML")  
+  ("S" deqn-write-sbml "SBML")  
   )
 
 (progn
