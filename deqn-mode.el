@@ -6,8 +6,8 @@
 ;; Emacs with easy exports to python or matlab.
 ;; 1. DONE Fontify an equation file
 ;; 2. DONE Export validated model to PyDSTool
-;; 3. PROG Export to plain text (separate files for equations, ics, parameters)
-;; 4. TODO Export model to SBML format
+;; 3. DONE Export to plain text (separate files for equations, ics, parameters)
+;; 4. DONE Export model to SBML format
 ;;; Code:
 (require 'subr-x)
 (require 'cl)
@@ -256,7 +256,7 @@ deqn-number-p)
   (setq-local deqn-pydstool/ics (concat deqn-pydstool/ics
                                         "	          }"))
   (setq deqn-write-string
-              (concat "## This model file is generated automatically using deqn-mode.el ##\n"
+              (concat "## This model file was generated automatically using deqn-mode.el ##\n"
                       "import PyDSTool as dst\n"
                       "import matplotlib.pyplot as plt\n\n"
                       "DSargs = dst.args(name='test',\n"
@@ -321,6 +321,69 @@ and the initial conditions respectively."
       (save-buffer))    
     )
 
+(defun deqn-write-python ()
+    "Export current file to a python function file"
+    (interactive)
+    (deqn-parse-and-validate-buffer)
+    ;; Write equations
+    (message "Starting file construction")
+    (setq-local deqn-python/body (concat
+                                  "# This file was generated automatically using deqn.el\n"
+                                  "from scipy.integrate import odeint\n"
+                                  "import numpy as np\n"
+                                  "import matplotlib.pyplot as plt\n"
+                                  "def mymodel(X, t, pars):\n"))
+    ;; Write parameters
+    (setq-local counter 0)    
+    (dolist (pars deqn-param-vals)
+      (setq-local deqn-python/body (concat deqn-python/body
+                                           "    " (nth 0 pars) "= pars[" (number-to-string counter) "]\n"))
+      (setq-local counter(+ 1 counter)))
+    ;; Initialize interpretable variables with argument X
+    (setq-local counter 0)
+    (dolist (eqn deqn-equations)
+      (setq-local deqn-python/body  (concat deqn-python/body
+                                            "    " (substring (nth 0 eqn) 1) "="
+                                            (concat "X[" (number-to-string counter) "]") "\n\n"))
+                  (setq-local counter (+ 1 counter)))
+    ;; Specify equations
+    (dolist (eqn deqn-equations)
+      (setq-local deqn-python/body  (concat deqn-python/body
+              "    " (nth 0 eqn) "=" (replace-regexp-in-string (regexp-quote "exp") "np.exp" (nth 1 eqn)) "\n")))
+    ;; Make return value list dX containing derivatives
+    (setq-local deqn-python/body (concat deqn-python/body "    dX = ["))
+    (dolist (eqn deqn-equations)
+      (setq-local deqn-python/body (concat deqn-python/body
+               (nth 0 eqn) ", ")) )
+    (setq-local deqn-python/body (concat deqn-python/body "]\n"))
+    (setq-local deqn-python/body (concat deqn-python/body "    return dX\n"))
+    ;; End of function definition
+    ;; Create variable to hold initial conditions
+    (setq-local deqn-python/body (concat deqn-python/body "x0 = ["))
+    (dolist (ics deqn-init-conds)
+      (setq-local deqn-python/body (concat deqn-python/body
+                                           (nth 1 ics) ",# " (nth 0 ics) "\n")))
+    (setq-local deqn-python/body (concat deqn-python/body "]\n"
+                                         "pars=["))    
+    (dolist (pars deqn-param-vals)
+      (setq-local deqn-python/body (concat deqn-python/body
+                                            (nth 1 pars) ", # " (nth 0 pars) "\n")))
+
+    (setq-local deqn-python/body (concat deqn-python/body "]\n"
+                                         "t = np.linspace(0,10, 100)\n"
+                                         "Y = odeint(mymodel, x0, t, (pars,))\n"
+                                         "for i in range(len(Y[0])):\n"
+                                         "    plt.plot(t, Y[:,i])\n"
+                                         "plt.show()\n"
+                                         ))    
+    (setq-local outfilename "*deqn-python-model*")
+    (setq deqn-write-string deqn-python/body)
+    (setq outbuffername (generate-new-buffer outfilename))
+    (with-current-buffer outbuffername
+      (insert deqn-write-string)
+      (save-buffer))    
+    )
+
 (defun deqn-write-sbml ()
     "Export current file to the SBML format.
 Calls the smbl-translator.py script to read plain text files 
@@ -344,10 +407,12 @@ containing the model definition, and exports to SBML."
            ^Export Options^
            ----------------
               _P_yDSTool    
+              _p_ython
               _S_BML
               _t_ext
 "
   ("P" deqn-write-pydstool "PyDSTool")
+  ("p" deqn-write-python "Python")  
   ("t" deqn-write-text "Text")
   ("S" deqn-write-sbml "SBML")  
   )
