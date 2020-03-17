@@ -1,3 +1,11 @@
+"""
+Author: Amogh Jalihal
+Usage: At the commandline, pass the path to the directory where the model 
+       is defined in three tab separated files.
+       1. variables.txt contains the variable and the corresponding ODE RHS
+       2. parameters.txt contains kinetic parameters and their values
+       3. initialconditions.txt contains the variable names and initial values
+"""
 import sys
 from libsbml import *
 import re
