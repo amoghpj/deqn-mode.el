@@ -17,10 +17,12 @@
 (require 'deqn-pydstool)
 (require 'deqn-text)
 (require 'deqn-sbml)
+(require 'deqn-simulator-interface)
 
 
 ;; (defun deqn/init-buffers ()
 ;;   "Create window configuration.
+
 
 ;;    Save windows, close windows, split screen vertically so that
 ;;    the user defined equations on the left are formatted correctly
@@ -51,10 +53,10 @@
 
 (defhydra deqn-mode-hydra (:color blue)
   "
-           ----------------
-           ^Export Options^
-           ----------------
-              _P_yDSTool
+           ----------------    ------------------
+           ^Export Options^    ^Invoke Transient^
+           ----------------    ------------------
+              _P_yDSTool       s_i_mulator interface
               _p_ython
               _S_BML
               _t_ext
@@ -63,6 +65,7 @@
   ("p" deqn-python/translate-model "Python")
   ("t" deqn-text/translate-model "Text")
   ("S" deqn-sbml/translate-model "SBML")
+  ("i" simulator-options "Simulator")
   )
 
 (progn
