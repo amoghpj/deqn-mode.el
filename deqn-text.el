@@ -7,7 +7,7 @@
 (require 'cl)
 (require 'deqn-utils)
 
-(defun deqn-write-text ()
+(defun deqn-text/translate-model ()
     "Export current file to plain text tab separated files.
 This will generate three files, containing the equations, the parameters,
 and the initial conditions respectively."

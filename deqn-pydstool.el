@@ -7,7 +7,7 @@
 (require 'cl)
 (require 'deqn-utils)
 
-(defun deqn-write-pydstool ()
+(defun deqn-pydstool/translate-model ()
   "Export current file to PyDSTool format in python."
   (interactive)
   (deqn-parse-and-validate-buffer)

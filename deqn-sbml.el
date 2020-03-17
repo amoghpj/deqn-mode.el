@@ -7,7 +7,7 @@
 (require 'cl)
 (require 'deqn-utils)
 
-(defun deqn-write-sbml ()
+(defun deqn-sbml/translate-model ()
     "Export current file to the SBML format.
 Calls the smbl-translator.py script to read plain text files 
 containing the model definition, and exports to SBML."

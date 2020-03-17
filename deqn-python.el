@@ -16,7 +16,7 @@
   "Default header for pure python export.
 Can be customized to change the library imports.")
 
-(defun deqn-write-python ()
+(defun deqn-python/translate-model ()
     "Export current file to a python function file."
     (interactive)
     (deqn-parse-and-validate-buffer)

@@ -59,10 +59,10 @@
               _S_BML
               _t_ext
 "
-  ("P" deqn-write-pydstool "PyDSTool")
-  ("p" deqn-write-python "Python")
-  ("t" deqn-write-text "Text")
-  ("S" deqn-write-sbml "SBML")
+  ("P" deqn-pydstool/translate-model "PyDSTool")
+  ("p" deqn-python/translate-model "Python")
+  ("t" deqn-text/translate-model "Text")
+  ("S" deqn-sbml/translate-model "SBML")
   )
 
 (progn
