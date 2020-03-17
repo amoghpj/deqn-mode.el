@@ -14,10 +14,23 @@ rabbit = 100                         # specify initial conditions without the "d
 grass = 100                          # specify values of parameters
 fox = 3
 #+end_src
-
 If deqn-mode has been loaded, this text should be syntax highlighted.
-Invoke the deqn mode hydra using =C-c h=. 
-To export the model to a python PyDSTool format, press =P=. The model file
-will be validated. If there are any parameters or initial conditions not specified,
-deqn-mode will throw an error. If everything is fine, the file will be written out
-to a .py script.
+
+** Export
+Invoke the deqn mode hydra using =C-c h= to see export options. 
+=deqn-mode= provides export options to various formats, including:
+1. plain python - this provides an opinionated Model class, with helper functions to interact
+   with the model
+2. PyDSTool - simple export to PyDSTool model definition along with some useful library imports
+3. SBML - export to the SBML format. This involves an intermediate plain text export to ease processing
+4. Plain text - separate files for parameters, initial conditions, and equation definitions
+
+For each export option, the model file will be validated. If there are
+any parameters or initial conditions not specified, deqn-mode will
+throw an error. If everything is fine, the appropriate conversion scripts will be called.
+
+** Simulation
+Inspired from XPP, =deqn-mode= provides some simple simulation capabilities directly from 
+the deqn model definition buffer. =C-c h i= brings up the simulator interface transient
+which allows the user to quickly control some features, and carry out a simulation.
+
