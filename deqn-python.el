@@ -11,20 +11,21 @@
                                   "# This file was generated automatically using deqn.el\n"
                                   "from scipy.integrate import odeint\n"
                                   "import numpy as np\n"
+                                  "from optparse import OptionParser\n"
                                   "import matplotlib.pyplot as plt\n\n"
                                   "class Model:\n"
                                   "    def model(self, X, t, pars):\n")
   "Default header for pure python export.
 Can be customized to change the library imports.")
 
-(defun deqn-python/translate-model ()
+(defun deqn-python/translate-model (&optional args)
     "Export current file to a python function file."
-    (interactive)
+    (interactive "P")
     (deqn-parse-and-validate-buffer)
     
     (setq-local deqn-python/body deqn-python/header-string)
     ;; Write parameters
-    (setq-local counter 0)    
+    (setq-local counter 0)
     (dolist (pars deqn-param-vals)
       (setq-local deqn-python/body (concat deqn-python/body
                                            "        " (nth 0 pars) "= pars[" (number-to-string counter) "]\n"))
@@ -48,6 +49,7 @@ Can be customized to change the library imports.")
                (nth 0 eqn) ", ")) )
     (setq-local deqn-python/body (concat deqn-python/body "]\n"))
     (setq-local deqn-python/body (concat deqn-python/body "        return dX\n\n"))
+    (setq-local deqn-python/body (replace-regexp-in-string (regexp-quote "^") "**" deqn-python/body))
 
     ;; Create dictionaries to hold ics and mapper
     (setq-local deqn-python/body (concat deqn-python/body 
@@ -115,17 +117,35 @@ Can be customized to change the library imports.")
                                          "            if k in self.icsdict.keys():\n"
                                          "                self.icsdict[k] = v\n\n"                                         
                                          "    def plotall(self, t, Y):\n"
-                                         "        for i in range(len(Y[0])):\n"
-                                         "            plt.plot(t, Y[:,i])\n"
-                                         "        plt.show()\n"
+                                         "        for k in self.varmapper.values():\n"
+                                         "            plt.plot(t, Y[k],label=k)\n"
+                                         "        plt.legend()\n\n"
+                                         "if __name__ == '__main__':\n"
+                                         "    parser = OptionParser()\n"
+                                         "    parser.add_option('--plot',action='store_true', default=False, help='plot and display')\n"
+                                         "    parser.add_option('--save',action='store_true', default=False, help='plot and save')\n"
+                                         "    parser.add_option('-t','--tmax',default=90, help='specify max simulation time')\n"                                         
+                                         "    (options, args) = parser.parse_args()\n"
+                                         "    mobj = Model()\n"
+                                         "    if options.plot:\n"
+                                         "        mobj.set_tmax(float(options.tmax))\n"
+                                         "        t, y = mobj.simulate()\n"
+                                         "        mobj.plotall(t, y)\n"                                         
+                                         "    if options.save:\n"
+                                         "        plt.savefig('deqn-generated-plot.png')\n"
+                                         "    else:\n"
+                                         "        plt.show()"
                                          ))    
     (setq-local outfilename "*deqn-python-model*")
     (setq deqn-write-string deqn-python/body)
     (setq outbuffername (generate-new-buffer outfilename))
+    (message "%s" outbuffername)
+    (setq original-fname (file-name-nondirectory (file-name-sans-extension buffer-file-name)))
     (with-current-buffer outbuffername
       (insert deqn-write-string)
-      (save-buffer))    
-    )
+      (if args
+          (write-file (concat original-fname  ".py"))
+        (save-buffer))))
 
 (provide 'deqn-python)
 ;;; deqn-python ends here
