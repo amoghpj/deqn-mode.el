@@ -1,13 +1,16 @@
+;;; deqn-simulator-interface --- Make interface for simulator settings
 ;;; Commentary:
-;; TODO (Re)generate python script by detecting changes in deqn file
+;;; TODO (Re)generate python script by detecting changes in deqn file
 
+;;; Code:
 (require 'transient)
 (require 'deqn-python)
+(require 'deqn-parameter-sets)
 (require 'dash)
 
 (defun convert-and-do-simulation (&optional args)
   "Call python script and carry out simulation."
-  (interactive (list (transient-args 'simulator-options)))
+  (interactive (list (transient-args 'simulator-options-transient)))
   ;;(deqn-python/translate-model)
   ;; (let ((process "*deqn-python*")))
   (message "%s" args)
@@ -16,7 +19,7 @@
   (shell-command (concat "python " (concat original-fname ".py ") (string-join args " "))))
 
 
-(define-transient-command simulator-options ()
+(define-transient-command simulator-options-transient ()
   "Takes switches while simulating ODE model"
   ["Arguments"
    ("p" "Plot" "--plot")

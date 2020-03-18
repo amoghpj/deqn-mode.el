@@ -57,7 +57,7 @@
            ^Export Options^    ^Invoke Transient^
            ----------------    ------------------
               _P_yDSTool       s_i_mulator interface
-              _p_ython
+              _p_ython         parame_t_er set selector
               _S_BML
               _t_ext
 "
@@ -65,14 +65,12 @@
   ("p" deqn-python/translate-model "Python")
   ("t" deqn-text/translate-model "Text")
   ("S" deqn-sbml/translate-model "SBML")
-  ("i" simulator-options "Simulator")
-  )
+  ("i" simulator-options-transient "Simulator")
+  ("t" deqn-read-parameter-table "Parameter Sets"))
 
 (progn
   (setq deqn-mode-map (make-sparse-keymap))
-
-  (define-key deqn-mode-map (kbd "C-c h") 'deqn-mode-hydra/body)
-  )
+  (define-key deqn-mode-map (kbd "C-c h") 'deqn-mode-hydra/body))
 
 (define-derived-mode deqn-mode prog-mode "deqn"
   "major mode for editing equations."
